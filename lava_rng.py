@@ -15,7 +15,7 @@ image_bytes = img.tobytes()
 current_hash = hashlib.sha3_256(image_bytes).digest()
 
 # Hash zinciri
-rounds = 20000  # Artırılabilir
+rounds = 20000  # Arttırılabilir
 all_bytes = b""
 
 for _ in range(rounds):
@@ -32,3 +32,4 @@ with open("lava_bits.txt", "w") as f:
 print("Bitti.")
 
 print("Toplam bit:", len(bit_string))
+
