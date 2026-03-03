@@ -2,9 +2,6 @@ import numpy as np
 
 print("RUN VERSION: 2026-02-26 / round5-debug-v1")  # <-- bunu görmelisin
 
-# ============================================================
-# PARAMETRELER
-# ============================================================
 P1, P2, P3 = 269, 521, 839
 ROUND_MODS = {1: P1, 2: P2, 3: P3}
 ROUND_SEEDS = {1: P2, 2: P3, 3: P1}  # tur1->p2, tur2->p3, tur3->p1
@@ -24,9 +21,6 @@ K12_BYTES = [
 
 MIX_ITERS = 1
 
-# ============================================================
-# BLOKLAMA
-# ============================================================
 def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
     pad_len = block_size - (len(data) % block_size)
     if pad_len == 0:
@@ -40,16 +34,10 @@ def bytes16_to_state(block16: bytes) -> np.ndarray:
     arr = np.frombuffer(block16, dtype=np.uint8).astype(int)
     return arr.reshape(4, 4)
 
-# ============================================================
-# 1) Whitening
-# ============================================================
 def whitening(S: np.ndarray, k11_16: list[int], p: int) -> np.ndarray:
     K = np.array(k11_16, dtype=int).reshape(4, 4)
     return (S + K) % p
 
-# ============================================================
-# 2) Magic square permütasyon
-# ============================================================
 def magic_square_permute(S: np.ndarray) -> np.ndarray:
     s = S.reshape(-1)
     idx = [
@@ -60,9 +48,6 @@ def magic_square_permute(S: np.ndarray) -> np.ndarray:
     ]
     return s[idx].reshape(4, 4)
 
-# ============================================================
-# Collatz maske (0/1) — son 4 bit kırp + uzat
-# ============================================================
 def collatz_bits_once(seed: int) -> list[int]:
     x = int(seed)
     bits = []
@@ -73,7 +58,6 @@ def collatz_bits_once(seed: int) -> list[int]:
         else:
             bits.append(0)
             x = 3 * x + 1
-    # deterministik kuyruk: son 4 bit at
     return bits[:-4] if len(bits) > 4 else []
 
 def expand_collatz_mask(seed: int, length: int) -> np.ndarray:
@@ -81,15 +65,11 @@ def expand_collatz_mask(seed: int, length: int) -> np.ndarray:
     s = int(seed)
     while len(out) < length:
         out.extend(collatz_bits_once(s))
-        # deterministik seed güncellemesi
         s = (3 * s + 1) % (2**31) + 2
         if len(out) == 0:
             out.extend([0, 1, 0, 1, 1, 0, 1, 0])
     return np.array(out[:length], dtype=int)
 
-# ============================================================
-# 3) u,v nonlineer karıştırma
-# ============================================================
 def shift_vec(v: np.ndarray) -> np.ndarray:
     return np.roll(v, -1)
 
@@ -111,10 +91,7 @@ def dual_state_mix(S: np.ndarray, k11_16: list[int], p: int, round_seed: int, it
         u, v = u_next, v_next
 
     return np.concatenate([u, v]).reshape(4, 4)
-
-# ============================================================
-# 4) Difüzyon (invertible A)
-# ============================================================
+    
 def inv_mod(a, p: int) -> int:
     aa = int(a) % int(p)
     if aa == 0:
@@ -165,9 +142,6 @@ def diffusion_columnwise(S: np.ndarray, k2_16: list[int], p: int) -> np.ndarray:
         S_out[:, j] = ((A @ col) % p).flatten()
     return S_out
 
-# ============================================================
-# 5) Tur sonu bit karıştırma (Collatz XOR)
-# ============================================================
 def bytes_to_bits(byte_list: list[int]) -> np.ndarray:
     bits = []
     for b in byte_list:
@@ -194,9 +168,6 @@ def round5_mix(S: np.ndarray, seed: int):
     out_bytes   = bits_to_bytes(xor_bits)                        # 16 byte
     return state_bytes, state_bits, mask_bits, xor_bits, out_bytes
 
-# ============================================================
-# 1 TUR UYGULA (Katman 1-5)
-# ============================================================
 def apply_round(state_bytes16: list[int], r: int):
     p = ROUND_MODS[r]
     seed = ROUND_SEEDS[r]
@@ -209,9 +180,6 @@ def apply_round(state_bytes16: list[int], r: int):
 
     return round5_mix(S, seed)
 
-# ============================================================
-# ÇALIŞTIR: 3 TUR ARDIŞIK + HER TUR ROUND5 DETAY
-# ============================================================
 if __name__ == "__main__":
     msg = input("Mesajı gir: ").strip()
     if msg == "":
@@ -247,4 +215,5 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("3. TUR SONU DURUM MATRİSİ (4x4)")
     print("=" * 60)
+
     print(bytes16_list_to_state(state))
