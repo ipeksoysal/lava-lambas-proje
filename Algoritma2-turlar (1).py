@@ -1,10 +1,10 @@
 import numpy as np
 
-print("RUN VERSION: 2026-02-26 / round5-debug-v1")  # <-- bunu görmelisin
+print("RUN VERSION: 2026-02-26 / round5-debug-v1")  
 
 P1, P2, P3 = 269, 521, 839
 ROUND_MODS = {1: P1, 2: P2, 3: P3}
-ROUND_SEEDS = {1: P2, 2: P3, 3: P1}  # tur1->p2, tur2->p3, tur3->p1
+ROUND_SEEDS = {1: P2, 2: P3, 3: P1} 
 
 K11_BYTES = [
     71, 101, 114, 195,
@@ -82,7 +82,7 @@ def dual_state_mix(S: np.ndarray, k11_16: list[int], p: int, round_seed: int, it
     v = s[8:].copy()
 
     kvec = np.array(k11_16, dtype=int)
-    k_v = kvec[8:]  # F(v) için
+    k_v = kvec[8:] 
 
     for t in range(iters):
         c = expand_collatz_mask(round_seed + t, 8)
@@ -161,11 +161,11 @@ def bits_to_bytes(bits: np.ndarray) -> list[int]:
     return out
 
 def round5_mix(S: np.ndarray, seed: int):
-    state_bytes = (S % 256).astype(int).reshape(-1).tolist()     # 16 byte
-    state_bits  = bytes_to_bits(state_bytes)                     # 128 bit
-    mask_bits   = expand_collatz_mask(seed, len(state_bits))     # 128 bit
+    state_bytes = (S % 256).astype(int).reshape(-1).tolist()    
+    state_bits  = bytes_to_bits(state_bytes)                   
+    mask_bits   = expand_collatz_mask(seed, len(state_bits))    
     xor_bits    = state_bits ^ mask_bits
-    out_bytes   = bits_to_bytes(xor_bits)                        # 16 byte
+    out_bytes   = bits_to_bytes(xor_bits)                       
     return state_bytes, state_bits, mask_bits, xor_bits, out_bytes
 
 def apply_round(state_bytes16: list[int], r: int):
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         print("XOR  bits  (ilk 64):", xor_bits[:64].tolist())
         print("Tur çıkışı (16 byte):", out_bytes)
 
-        state = out_bytes  # sonraki turun girdisi
+        state = out_bytes 
 
     print("\n" + "=" * 60)
     print("3. TUR SONU ÇIKTI (16 byte)")
@@ -217,3 +217,4 @@ if __name__ == "__main__":
     print("=" * 60)
 
     print(bytes16_list_to_state(state))
+
