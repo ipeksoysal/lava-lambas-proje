@@ -4,9 +4,6 @@ import numpy as np
 import secrets
 from typing import List, Tuple
 
-# ============================================================
-# PARAMETRELER
-# ============================================================
 P1, P2, P3 = 269, 521, 839
 P_FINAL = 1629
 
@@ -20,9 +17,6 @@ DEFAULT_TEXT = (
     "I propose to consider the question, 'Can machines think?'"
 )
 
-# ============================================================
-# PAD / UNPAD
-# ============================================================
 def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
     pad_len = block_size - (len(data) % block_size)
     if pad_len == 0:
@@ -43,10 +37,6 @@ def chunk_n(data: bytes, n: int) -> List[bytes]:
     assert len(data) % n == 0
     return [data[i:i+n] for i in range(0, len(data), n)]
 
-# ============================================================
-# STATE / WORD SERIALIZATION
-# (3. tur sonunda elemanlar 0..838; bu yüzden 16 elemanı u16 ile taşırız)
-# ============================================================
 def bytes16_to_matrix(block16: bytes) -> np.ndarray:
     arr = np.frombuffer(block16, dtype=np.uint8).astype(int)
     return arr.reshape(4, 4)
@@ -74,10 +64,6 @@ def parse_words16_le_u16(buf32: bytes) -> List[int]:
         words.append(int.from_bytes(buf32[i:i+2], "little"))
     return words
 
-# ============================================================
-# MASTER KEY -> blok anahtarları (32 byte / blok)
-# (SHA yok) xorshift128+ deterministik byte akışı
-# ============================================================
 def _u64(x: int) -> int:
     return x & 0xFFFFFFFFFFFFFFFF
 
@@ -118,9 +104,6 @@ def derive_block_keys(master_key: bytes, block_index: int) -> Tuple[List[int], L
     k2 = list(k[16:])
     return k1, k2
 
-# ============================================================
-# KATMAN 1: Whitening (+ / -)
-# ============================================================
 def whitening_enc(S: np.ndarray, k11_16: List[int], p: int) -> np.ndarray:
     K = np.array(k11_16, dtype=int).reshape(4, 4) % p
     return (S + K) % p
@@ -129,9 +112,6 @@ def whitening_dec(S: np.ndarray, k11_16: List[int], p: int) -> np.ndarray:
     K = np.array(k11_16, dtype=int).reshape(4, 4) % p
     return (S - K) % p
 
-# ============================================================
-# KATMAN 2: Permütasyon + tersi
-# ============================================================
 PERM_IDX = [
     3,  13, 14, 0,
     8,  6,  5,  11,
@@ -150,9 +130,6 @@ def inv_permute(S: np.ndarray) -> np.ndarray:
     s = S.reshape(-1)
     return s[INV_PERM_IDX].reshape(4, 4)
 
-# ============================================================
-# Collatz bit akışı (0/1), son 4 bit kırp, uzat
-# ============================================================
 def collatz_bits_once(seed: int) -> List[int]:
     x = int(seed)
     bits = []
@@ -187,9 +164,6 @@ def collatz_mask_elements(seed: int, p: int, count: int = 16) -> np.ndarray:
         elems.append(val % p)
     return np.array(elems, dtype=int)
 
-# ============================================================
-# KATMAN 3: u,v karıştırma (enc/dec)
-# ============================================================
 def shift_vec(v: np.ndarray) -> np.ndarray:
     return np.roll(v, -1)
 
@@ -227,9 +201,6 @@ def mix_uv_dec(S: np.ndarray, k11_16: List[int], p: int, seed: int, iters: int) 
 
     return np.concatenate([u, v]).reshape(4, 4)
 
-# ============================================================
-# KATMAN 4: Difüzyon (A ve A^{-1})
-# ============================================================
 def inv_mod(a, p: int) -> int:
     aa = int(a) % int(p)
     if aa == 0:
@@ -300,9 +271,6 @@ def diffusion_dec(S: np.ndarray, k2_16: List[int], p: int) -> np.ndarray:
         out[:, j] = ((Ainv @ col) % p).flatten()
     return out
 
-# ============================================================
-# KATMAN 5: KAYIPSIZ Collatz mask (mod p toplama)
-# ============================================================
 def round5_enc(S: np.ndarray, p: int, seed: int) -> np.ndarray:
     M = collatz_mask_elements(seed, p, count=16).reshape(4, 4)
     return (S + M) % p
@@ -311,9 +279,6 @@ def round5_dec(S: np.ndarray, p: int, seed: int) -> np.ndarray:
     M = collatz_mask_elements(seed, p, count=16).reshape(4, 4)
     return (S - M) % p
 
-# ============================================================
-# 1 ROUND ENC/DEC
-# ============================================================
 def apply_round_enc(S: np.ndarray, r: int, k11: List[int], k12: List[int]) -> np.ndarray:
     p = ROUND_MODS[r]
     seed = ROUND_SEEDS[r]
@@ -334,9 +299,6 @@ def apply_round_dec(S: np.ndarray, r: int, k11: List[int], k12: List[int]) -> np
     S = whitening_dec(S, k11, p)
     return S
 
-# ============================================================
-# FINAL katman: byte-XOR (invertible)
-# ============================================================
 def bytes_to_bits(byte_data: bytes) -> np.ndarray:
     bits = []
     for b in byte_data:
@@ -359,9 +321,6 @@ def final_xor(data: bytes, seed: int = P_FINAL) -> bytes:
     m = expand_collatz_bits(seed, len(b))
     return bits_to_bytes(b ^ m)
 
-# ============================================================
-# BLOCK ENCRYPT/DECRYPT (3 ROUND)
-# ============================================================
 def encrypt_block(block16: bytes, master_key: bytes, block_index: int) -> bytes:
     k11, k12 = derive_block_keys(master_key, block_index)
     S = bytes16_to_matrix(block16)
@@ -381,13 +340,9 @@ def decrypt_block(block32: bytes, master_key: bytes, block_index: int) -> bytes:
     for r in (3, 2, 1):
         S = apply_round_dec(S, r, k11, k12)
 
-    # plaintext alanına dönüş: 0..255 (tüm değerler bu aralıkta olmalı)
     pt16 = bytes([(int(x) % 256) for x in S.reshape(-1).tolist()])
     return pt16
 
-# ============================================================
-# FULL ENCRYPT/DECRYPT
-# ============================================================
 def encrypt_message(plaintext: str, master_key: bytes) -> bytes:
     pt = pkcs7_pad(plaintext.encode("utf-8"), 16)
     blocks16 = chunk_n(pt, 16)
@@ -396,8 +351,8 @@ def encrypt_message(plaintext: str, master_key: bytes) -> bytes:
     for i, b16 in enumerate(blocks16):
         ct_blocks32.append(encrypt_block(b16, master_key, i))
 
-    ct = b"".join(ct_blocks32)         # 32 * nblocks
-    ct_final = final_xor(ct, P_FINAL)  # final katman
+    ct = b"".join(ct_blocks32)       
+    ct_final = final_xor(ct, P_FINAL) 
     return ct_final
 
 def decrypt_message(cipher_final: bytes, master_key: bytes) -> str:
@@ -414,9 +369,6 @@ def decrypt_message(cipher_final: bytes, master_key: bytes) -> str:
     pt = pkcs7_unpad(pt_padded, 16)
     return pt.decode("utf-8", errors="strict")
 
-# ============================================================
-# MAIN
-# ============================================================
 if __name__ == "__main__":
     print("\n=== BLOK ŞİFRE (3 tur) + Final Collatz ===")
     print("1) Şifrele")
@@ -432,7 +384,6 @@ if __name__ == "__main__":
         if msg == "":
             msg = DEFAULT_TEXT
 
-        # DEMO/bulgular için otomatik key üretelim
         master_key = secrets.token_bytes(32)
         key_hex = master_key.hex()
 
@@ -463,4 +414,5 @@ if __name__ == "__main__":
 
         pt = decrypt_message(cipher_final, master_key)
         print("\n[ÇÖZÜLEN METİN]:")
+
         print(pt)
