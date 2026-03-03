@@ -1,14 +1,11 @@
 import math
 
-# Dosyayı oku
 with open("lava_bits.txt", "r") as f:
     bits = f.read().strip()
 
 n = len(bits)
 
 print("Toplam bit:", n)
-
-# FREKANS TESTİ (0 ve 1 dengesi)
 
 ones = bits.count("1")
 zeros = bits.count("0")
@@ -18,8 +15,6 @@ print("0 sayısı:", zeros)
 
 ratio = ones / n
 print("1 oranı:", ratio)
-
-#  ENTROPİ HESABI
 
 p1 = ones / n
 p0 = zeros / n
@@ -32,11 +27,10 @@ if p0 > 0:
 
 print("Shannon Entropi:", entropy)
 
-# RUNS TESTİ (0-1 geçiş sayısı)
-
 runs = 1
 for i in range(1, n):
     if bits[i] != bits[i-1]:
         runs += 1
+
 
 print("Toplam run sayısı:", runs)
