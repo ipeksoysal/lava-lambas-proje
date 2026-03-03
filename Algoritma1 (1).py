@@ -1,4 +1,3 @@
-# poly_cipher_fix.py
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 import base64
 
@@ -21,7 +20,7 @@ E_COEFFS = [
 def poly_eval_decimal(coeffs, x_int: int) -> Decimal:
     x = Decimal(x_int)
     y = Decimal(0)
-    for a in coeffs:      # Horner
+    for a in coeffs:      
         y = y * x + a
     return y
 
@@ -52,9 +51,7 @@ def decrypt_b64_to_text(cipher_b64: str) -> str:
         t = raw[i]
         c = raw[i+1]
         x = c ^ t
-        # İsteğe bağlı doğrulama:
         if tag_from_x(x) != t:
-            # Bozulma/yanlış ana veri tespiti
             raise ValueError(f"Doğrulama hatası: index {i//2}")
         out.append(x)
     return out.decode("utf-8", errors="strict")
@@ -79,3 +76,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
